@@ -1,4 +1,8 @@
 name: Build Android APK
+env:
+  KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+  KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+  run: ./gradlew assembleRelease
 
 on:
   workflow_dispatch: # Этот параметр открывает кнопку ручного запуска в интерфейсе
