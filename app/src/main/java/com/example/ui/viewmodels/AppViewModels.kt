@@ -42,6 +42,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val projectRepository = ProjectRepository(database.projectDao())
     val skillRepository = SkillRepository(database.skillDao())
     val mcpRepository = McpRepository(database.mcpServerDao(), mcpClient)
+    val firestoreSyncManager = com.example.data.remote.firestore.FirestoreSyncManager(
+        chatDao = database.chatDao(),
+        messageDao = database.messageDao(),
+        projectDao = database.projectDao(),
+        skillDao = database.skillDao(),
+        mcpServerDao = database.mcpServerDao()
+    )
 
     val agentCoordinator = AgentLoopCoordinator(
         openRouterClient = openRouterClient,
@@ -298,6 +305,24 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun saveApiKey(rawKey: String) {
         settingsRepository.saveApiKey(rawKey)
         validateApiKey(rawKey)
+    }
+
+    val firestoreSyncState = firestoreSyncManager.syncState
+
+    fun backupToFirestore(onResult: (Boolean, String) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val res = firestoreSyncManager.backupAllToCloud()
+            res.onSuccess { msg -> onResult(true, msg) }
+                .onFailure { err -> onResult(false, err.localizedMessage ?: "Backup failed") }
+        }
+    }
+
+    fun restoreFromFirestore(onResult: (Boolean, String) -> Unit = { _, _ -> }) {
+        viewModelScope.launch {
+            val res = firestoreSyncManager.restoreAllFromCloud()
+            res.onSuccess { msg -> onResult(true, msg) }
+                .onFailure { err -> onResult(false, err.localizedMessage ?: "Restore failed") }
+        }
     }
 
     fun setLanguage(lang: String) {

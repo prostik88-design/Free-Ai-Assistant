@@ -19,6 +19,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudSync
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Error
@@ -460,6 +463,103 @@ fun SettingsScreen(viewModel: AppViewModel) {
                             checked = settings.autoSendToolResults,
                             onCheckedChange = { viewModel.settingsRepository.setAutoSendToolResults(it) }
                         )
+                    }
+                }
+            }
+
+            // SECTION: Firestore / Cloud Sync
+            item {
+                val syncState by viewModel.firestoreSyncState.collectAsState()
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(Icons.Default.CloudSync, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Text(
+                                text = "Firestore Cloud Backup & Sync",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "Синхронизация и резервное копирование проектов, диалогов, файлов и навыков в Google Cloud Firestore.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        when (val state = syncState) {
+                            is com.example.data.remote.firestore.FirestoreSyncState.Syncing -> {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(vertical = 6.dp)
+                                ) {
+                                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MaterialTheme.colorScheme.primary)
+                                    Text("Синхронизация с Firestore...", style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                            is com.example.data.remote.firestore.FirestoreSyncState.Success -> {
+                                Text(
+                                    text = "✓ ${state.message}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = CyberTeal,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                            }
+                            is com.example.data.remote.firestore.FirestoreSyncState.Error -> {
+                                Text(
+                                    text = "✕ Ошибка: ${state.error}",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = CyberRose,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                            }
+                            else -> {}
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = {
+                                    viewModel.backupToFirestore { success, msg ->
+                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Backup")
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    viewModel.restoreFromFirestore { success, msg ->
+                                        Toast.makeText(context, msg, Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Restore")
+                            }
+                        }
                     }
                 }
             }

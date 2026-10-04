@@ -70,6 +70,21 @@ class RepositoryModule @Inject constructor(
 }
 
 @Singleton
+class FirestoreModule @Inject constructor(
+    private val databaseModule: DatabaseModule
+) {
+    val firestoreSyncManager: com.example.data.remote.firestore.FirestoreSyncManager by lazy {
+        com.example.data.remote.firestore.FirestoreSyncManager(
+            chatDao = databaseModule.chatDao,
+            messageDao = databaseModule.messageDao,
+            projectDao = databaseModule.projectDao,
+            skillDao = databaseModule.skillDao,
+            mcpServerDao = databaseModule.mcpServerDao
+        )
+    }
+}
+
+@Singleton
 class AgentModule @Inject constructor(
     private val databaseModule: DatabaseModule,
     private val networkModule: NetworkModule,

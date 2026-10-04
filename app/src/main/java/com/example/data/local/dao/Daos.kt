@@ -18,6 +18,9 @@ interface ChatDao {
     @Query("SELECT * FROM chats ORDER BY updatedAt DESC")
     fun getAllChats(): Flow<List<ChatEntity>>
 
+    @Query("SELECT * FROM chats ORDER BY updatedAt DESC")
+    suspend fun getAllChatsList(): List<ChatEntity>
+
     @Query("SELECT * FROM chats WHERE id = :id LIMIT 1")
     fun getChatById(id: String): Flow<ChatEntity?>
 
@@ -48,6 +51,9 @@ interface MessageDao {
     @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
     suspend fun getMessagesForChatOnce(chatId: String): List<MessageEntity>
 
+    @Query("SELECT * FROM messages WHERE chatId = :chatId ORDER BY timestamp ASC")
+    suspend fun getMessagesForChatList(chatId: String): List<MessageEntity>
+
     @Query("SELECT * FROM messages WHERE id = :id LIMIT 1")
     suspend fun getMessageById(id: String): MessageEntity?
 
@@ -72,6 +78,9 @@ interface ProjectDao {
     @Query("SELECT * FROM projects ORDER BY updatedAt DESC")
     fun getAllProjects(): Flow<List<ProjectEntity>>
 
+    @Query("SELECT * FROM projects ORDER BY updatedAt DESC")
+    suspend fun getAllProjectsList(): List<ProjectEntity>
+
     @Query("SELECT * FROM projects WHERE id = :id LIMIT 1")
     fun getProjectById(id: String): Flow<ProjectEntity?>
 
@@ -95,6 +104,9 @@ interface ProjectDao {
 interface SkillDao {
     @Query("SELECT * FROM skills ORDER BY isBuiltIn DESC, createdAt DESC")
     fun getAllSkills(): Flow<List<SkillEntity>>
+
+    @Query("SELECT * FROM skills ORDER BY isBuiltIn DESC, createdAt DESC")
+    suspend fun getAllSkillsList(): List<SkillEntity>
 
     @Query("SELECT * FROM skills WHERE id = :id LIMIT 1")
     suspend fun getSkillById(id: String): SkillEntity?
@@ -122,6 +134,9 @@ interface SkillDao {
 interface McpServerDao {
     @Query("SELECT * FROM mcp_servers ORDER BY createdAt DESC")
     fun getAllServers(): Flow<List<McpServerEntity>>
+
+    @Query("SELECT * FROM mcp_servers ORDER BY createdAt DESC")
+    suspend fun getAllServersList(): List<McpServerEntity>
 
     @Query("SELECT * FROM mcp_servers WHERE isEnabled = 1")
     suspend fun getEnabledServersOnce(): List<McpServerEntity>

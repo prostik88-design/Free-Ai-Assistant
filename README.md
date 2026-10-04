@@ -1,9 +1,6 @@
-README.md
+# RouterAgent
 
-```markdown
-# OpenRouter Agent
-
-Нативное Android-приложение — клиент OpenRouter с агентным режимом (Agentic Mode), Skills, Projects, MCP и импортом навыков из GitHub.
+Нативное Android-приложение — клиент OpenRouter с агентным режимом (Agentic Mode), Skills, Projects, MCP, синхронизацией Google Cloud Firestore / Filestore и импортом навыков из GitHub.
 
 Приложение работает как локальный агентный оркестратор: собирает системный промпт, подключает активные Skills и контекст Project, объединяет локальные и MCP-инструменты в единый реестр, вызывает модель через OpenRouter, выполняет tool calls и возвращает результаты обратно в модель до финального ответа.
 
@@ -14,288 +11,90 @@ README.md
 ### Чаты
 - Список диалогов, создание, переименование, удаление.
 - Потоковая генерация ответа (streaming).
-- Markdown и code blocks, копирование сообщений.
-- Повтор генерации, редактирование пользовательского сообщения, остановка streaming.
-- Отображение tool calls, промежуточных результатов agent loop и ошибок.
-- Привязка Skills и Project к чату.
+- Markdown и code blocks с подсветкой синтаксиса, быстрое копирование сообщений.
+- Повтор генерации, редактирование сообщений, остановка streaming.
+- Интерактивное отображение tool calls, промежуточных результатов agent loop и ошибок.
+- Привязка Skills и Project к конкретному чату.
 - Выбор модели, индикатор Agentic Mode, активные Skills.
 
-### Agentic Mode
-Agent loop выполняет 12 шагов:
+### Agentic Mode (Цикл агента)
+Agent loop выполняет 12 ключевых шагов:
 1. Получить пользовательскую задачу.
-2. Собрать system prompt.
-3. Добавить активный Skill.
-4. Добавить контекст проекта.
-5. Объединить локальные и MCP-инструменты.
-6. Отправить запрос в OpenRouter.
+2. Собрать dynamic system prompt.
+3. Подключить активный Skill.
+4. Добавить контекст файлов текущего Project.
+5. Объединить локальные и MCP-инструменты в единый реестр.
+6. Отправить запрос в OpenRouter с описанием доступных tools.
 7. Проверить наличие `tool_calls`.
-8. Запросить подтверждение, если инструмент опасный.
-9. Выполнить инструмент.
-10. Добавить результат в историю.
-11. Повторить запрос.
-12. Завершить цикл после обычного ответа или достижения лимита итераций.
+8. Запросить подтверждение пользователя (Approval Gate), если инструмент помечен как опасный.
+9. Выполнить инструмент в безопасной среде.
+10. Добавить результат вызова (`tool_message`) в историю.
+11. Повторить запрос к модели с обновленным контекстом.
+12. Завершить цикл после финального ответа или достижения установленного лимита итераций.
 
-### Projects
-- Отдельные рабочие пространства.
-- Привязка чатов, файлов и навыков.
-- Изоляция контекста между проектами.
+### Projects (Рабочие пространства)
+- Изолированные рабочие пространства.
+- Привязка чатов, контекстных файлов и специализированных навыков.
+- Управление системными инструкциями на уровне проекта.
 
-### Skills
+### Skills (Навыки)
 - Форматы: `SKILL.md`, JSON, YAML.
-- Поля: `name`, `description`, `system_prompt`, `input_schema`, `tools_allowed`, `output_format`.
+- Спецификация: `name`, `description`, `system_prompt`, `input_schema`, `tools_allowed`, `output_format`.
 - Встроенные и пользовательские навыки.
 - Создание из шаблона внутри приложения.
-- Импорт по ссылке на GitHub с валидацией схемы и preview перед активацией.
-- Привязка к проекту или отдельному чату.
+- Импорт по прямой ссылке на GitHub с валидацией схемы и preview перед активацией.
+- Привязка к проекту или отдельному диалогу.
 
-### MCP
-- Подключение серверов: URL, transport, auth.
-- Список exposed tools.
+### MCP (Model Context Protocol)
+- Подключение внешних MCP-серверов (SSE, HTTP, JSON-RPC).
+- Динамический список exposed tools.
 - Единый Tool Registry: Local + MCP + Model tools.
-- Timeout и недоступность сервера не блокируют приложение.
-- Отключённый MCP tool не отправляется модели.
+- Устойчивость к тайм-аутам: недоступность сервера не блокирует работу приложения.
+- Отключённые MCP-инструменты исключаются из контекста модели.
 
-### Settings
-1. OpenRouter API Key.
-2. Выбранная модель.
-3. `openrouter/free` (free router).
-4. Temperature.
-5. Max tokens.
-6. Максимальное число agent iterations.
-7. Parallel tool calls.
-8. Подтверждение опасных действий.
-9. Разрешить MCP.
-10. Разрешить сетевые инструменты.
-11. Автоматическая отправка результатов tools.
-12. Очистка локальной истории.
-13. Экспорт данных.
-14. Удаление всех данных.
+### Firestore / Filestore Cloud Sync
+- **Резервное копирование в облако (Cloud Backup)**: выгрузка всех проектов, контекстных файлов, диалогов, истории сообщений и настроек навыков в Google Cloud Firestore.
+- **Восстановление (Cloud Restore)**: быстрое восстановление данных из облака в локальную базу данных Room.
+- **Автономный режим**: локальная работа на базе SQLite/Room с поддержкой отложенной синхронизации.
+
+### Settings & Configuration
+1. OpenRouter API Key (шифрование в Android Keystore).
+2. Выбор активной модели и моделей с авто-роутингом (`openrouter/free`).
+3. Язык интерфейса: Русский 🇷🇺, English 🇬🇧, Системный.
+4. Температура генерации (Temperature) и лимит токенов (Max Tokens).
+5. Максимальное число итераций агента (Max Agent Iterations).
+6. Параллельные вызовы инструментов (Parallel Tool Calls).
+7. Запрос подтверждения перед опасными действиями (Dangerous Tools Approval).
+8. Управление MCP-серверами и сетевыми инструментами.
+9. Автоматическая отправка результатов выполнения инструментов.
+10. Резервное копирование и восстановление через Google Cloud Firestore.
+11. Очистка локальной истории, экспорт в JSON и удаление всех данных.
 
 ---
 
 ## Технологический стек
 
-- **Kotlin**
-- **Jetpack Compose + Material 3**
-- **MVVM + Repository + Clean Architecture**
-- **Hilt** — dependency injection
-- **Retrofit + OkHttp** — OpenRouter, GitHub, MCP HTTP
-- **Kotlin Coroutines + Flow**
-- **Room** — чаты, сообщения, проекты, Skills, MCP-конфигурации
-- **DataStore** — настройки
-- **Android Keystore** — шифрование API-ключей и токенов
-- **Kotlin Serialization** — JSON-модели и OpenRouter API
-- **YAML-парсер** — импорт Skills
-- **WorkManager** — фоновые операции: импорт репозитория, индексация файлов, синхронизация MCP
-- **MCP Kotlin SDK**
-
----
-
-## Архитектура
-
-```
-
-app            → UI, навигация, DI-корень
-feature/*      → экраны и ViewModel (auth, chats, projects, skills, mcp, settings)
-domain         → модели, интерфейсы репозиториев, use cases
-data/*         → OpenRouter, GitHub, MCP, Skills, Tools, реализации репозиториев
-agent          → AgentEngine, AgentLoop, ApprovalGate, ToolCallDispatcher
-core/*         → common, ui, database, datastore, network, security
-worker         → WorkManager-воркеры
-
-```
-
-Правило зависимостей: `app → feature → domain ← data → core`. Модуль `agent` зависит от `domain` и `data`, модуль `worker` — от `data` и `agent`.
-
----
-
-## Структура репозитория
-
-```
-
-OpenRouterAgent/
-├── app/
-├── core/
-│   ├── common/
-│   ├── ui/
-│   ├── database/
-│   ├── datastore/
-│   ├── network/
-│   └── security/
-├── feature/
-│   ├── auth/
-│   ├── chats/
-│   ├── projects/
-│   ├── skills/
-│   ├── mcp/
-│   └── settings/
-├── domain/
-│   ├── model/
-│   ├── repository/
-│   └── usecase/
-├── data/
-│   ├── openrouter/
-│   ├── github/
-│   ├── mcp/
-│   ├── skills/
-│   ├── tools/
-│   └── repository/
-├── agent/
-└── worker/
-
-```
+- **Kotlin 2.1.0**
+- **Jetpack Compose + Material 3 (M3)**
+- **Room Database + KSP 2.1.0-1.0.29** — локальное хранение данных
+- **Google Cloud Firestore** — облачная синхронизация данных
+- **Android Keystore (AES/GCM)** — аппаратное шифрование ключей API
+- **Retrofit 2 + OkHttp 3** — сетевой слой OpenRouter, GitHub API и MCP
+- **Kotlin Coroutines + StateFlow** — асинхронность и реактивное состояние
+- **Gradle 8.12.1 + AGP 8.7.3** — стабильная сборочная цепочка
 
 ---
 
 ## Начало работы
 
-### Требования
-- Android Studio последней стабильной версии.
-- JDK 17+.
-- Android SDK: minSdk 26, targetSdk 34+.
-- Аккаунт OpenRouter и API Key (https://openrouter.ai/keys).
-
-### Сборка
+### Сборка проекта
 ```bash
 git clone <repository-url>
-cd OpenRouterAgent
+cd RouterAgent
 ./gradlew assembleDebug
 ```
 
-Запуск
-
-1. Установить приложение на устройство или эмулятор.
-2. На экране входа ввести OpenRouter API Key.
-3. Проверить ключ запросом к API.
-4. Сохранить ключ в зашифрованном хранилище.
-5. Выбрать модель или openrouter/free в Settings.
-6. Начать новый чат или создать Project.
-
----
-
-Безопасность
-
-· API Key и MCP-токены шифруются через Android Keystore (AES/GCM).
-· Ключевой материал Keystore недоступен для обычного извлечения приложением.
-· Authorization редактируется в OkHttp-логах.
-· Экспорт данных не включает секреты без явного подтверждения.
-· Удаление всех данных очищает Room, DataStore, файлы Projects и ключи Keystore.
-· Импорт Skills из GitHub не выполняет код.
-· Исполняемые файлы запрещены по умолчанию.
-· Неизвестные инструменты отклоняются без выполнения.
-
----
-
-Импорт Skills из GitHub
-
-Поддерживаемые ссылки:
-
+### Запуск тестов
+```bash
+./gradlew testDebugUnitTest
 ```
-https://github.com/user/repository
-https://github.com/user/repository/tree/main/skills/example
-https://raw.githubusercontent.com/user/repository/main/SKILL.md
-```
-
-Алгоритм:
-
-1. Разобрать URL.
-2. Получить README, SKILL.md, JSON или YAML.
-3. Определить корневой каталог Skill.
-4. Проверить обязательные поля.
-5. Проверить размер файлов.
-6. Запретить исполняемые файлы.
-7. Показать preview.
-8. Подтвердить импорт.
-9. Сохранить Skill локально.
-10. Предложить привязать к проекту или чату.
-
----
-
-Предустановленные источники Skills
-
-· https://github.com/DietrichGebert/ponytail
-· https://github.com/anthropics/skills
-· https://github.com/tashfeenahmed/freellmapi
-· https://github.com/obra/superpowers
-· https://github.com/Shubhamsaboo/awesome-llm-apps
-
-Перед включением проверьте лицензии репозиториев.
-
----
-
-OpenRouter
-
-Используется OpenAI-compatible API:
-
-· /api/v1/chat/completions — чат и streaming.
-· /api/v1/models — список моделей и возможностей.
-· Tool calling — цикл: модель предлагает tool, приложение выполняет, результат возвращается модели.
-· Structured outputs — через response_format.
-· openrouter/free — отдельный free router для автоматического выбора бесплатных моделей с нужными возможностями.
-
----
-
-Тесты
-
-API Key
-
-· Ключ сохраняется зашифрованным.
-· Ключ не появляется в логах.
-
-Chat
-
-· Streaming корректно собирается.
-· Отмена запроса останавливает поток.
-· История сохраняется после перезапуска.
-
-Agent
-
-· Неизвестный tool отклоняется.
-· Превышение maxIterations завершает цикл.
-· Tool result возвращается модели.
-· Dangerous tool требует approval.
-
-Skills
-
-· Некорректный YAML отклоняется.
-· Отсутствующие name/description обнаруживаются.
-· Запрещённые tools блокируются.
-· Импорт из GitHub не выполняет код.
-
-MCP
-
-· Timeout корректно обрабатывается.
-· Недоступный сервер не блокирует приложение.
-· Инструменты сервера появляются в registry.
-· Отключённый MCP tool не отправляется модели.
-
----
-
-Roadmap
-
-☐ Core: network, database, datastore, security.
-☐ Auth + Settings.
-☐ Chats со streaming.
-☐ Agentic Mode + локальные tools + approval.
-☐ Skills: парсеры и валидация.
-☐ Импорт Skills из GitHub через WorkManager.
-☐ Projects: чаты, файлы, навыки.
-☐ MCP: клиенты и единый ToolRegistry.
-☐ Экспорт, очистка, удаление данных.
-
----
-
-Лицензия
-
-Укажите лицензию проекта. Предустановленные внешние Skills и Plugins распространяются под лицензиями соответствующих репозиториев.
-
----
-
-Контрибьютинг
-
-1. Форкнуть репозиторий.
-2. Создать ветку feature/<name> или fix/<name>.
-3. Писать тесты на новые сценарии.
-4. Открыть pull request с описанием изменений.
-
----
