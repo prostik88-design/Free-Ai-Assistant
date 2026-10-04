@@ -23,11 +23,11 @@ android {
   }
 
   signingConfigs {
-      release {
-      storeFile file("my_keystore.jks") // home/clyde/projects/free/AndroidStudioProjects/free/Free-Ai-Assistantlsl
-      storePassword System.getenv("KEYSTORE_PASSWORD")
-      keyAlias "my-upload-key.jks"
-      keyPassword System.getenv("KEY_PASSWORD")
+    create("release") {
+        storeFile = file("$rootDir/my-upload-key.jks")
+        storePassword = System.getenv("KEYSTORE_PASSWORD")
+        keyAlias = "my-upload-key"
+        keyPassword = System.getenv("KEY_PASSWORD")
     }
 }
     create("debugConfig") {
@@ -40,11 +40,14 @@ android {
 
   buildTypes {
     release {
-      isCrunchPngs = false
-      isMinifyEnabled = false
-      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("release")
-    }
+    isCrunchPngs = false
+    isMinifyEnabled = false
+    proguardFiles(
+        getDefaultProguardFile("proguard-android-optimize.txt"),
+        "proguard-rules.pro"
+    )
+    signingConfig = signingConfigs.getByName("release")
+}
     debug { }
   }
   compileOptions {
