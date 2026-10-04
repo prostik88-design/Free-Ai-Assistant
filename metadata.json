@@ -1,0 +1,6 @@
+{
+  "name": "RouterAgent",
+  "description": "Native OpenRouter AI Agent with Agentic mode, Skills, Projects, and MCP support",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
