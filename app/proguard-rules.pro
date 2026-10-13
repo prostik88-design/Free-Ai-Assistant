@@ -19,3 +19,8 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# KSP / Serialization Proguard Rules
+-dontwarn com.google.devtools.ksp.**
+-dontwarn javax.annotation.**
+-dontwarn org.checkerframework.**

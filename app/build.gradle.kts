@@ -25,7 +25,10 @@ android {
 
   signingConfigs {
     create("release") {
-      storeFile = file("${rootDir}/app/my-upload-key.jks")
+      val keystoreFile = file("${rootDir}/my-upload-key.jks").let {
+        if (it.exists()) it else file("${rootDir}/app/my-upload-key.jks")
+      }
+      storeFile = keystoreFile
       storePassword = System.getenv("KEYSTORE_PASSWORD")
       keyAlias = "my-upload-key"
       keyPassword = System.getenv("KEY_PASSWORD")
@@ -48,7 +51,11 @@ android {
           getDefaultProguardFile("proguard-android-optimize.txt"),
           "proguard-rules.pro"
       )
-      signingConfig = signingConfigs.getByName("release")
+      signingConfig = if (!System.getenv("KEYSTORE_PASSWORD").isNullOrBlank()) {
+        signingConfigs.getByName("release")
+      } else {
+        signingConfigs.getByName("debug")
+      }
     }
     
     debug {
@@ -139,7 +146,6 @@ dependencies {
   // DI & Serialization
   implementation(libs.javax.inject)
   implementation(libs.moshi.kotlin)
-  implementation(libs.moshi.kotlin.codegen)
   ksp(libs.moshi.kotlin.codegen)
   
   // Image loading
