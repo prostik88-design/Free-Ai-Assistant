@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android Preview APK
 
 on:
   push:
@@ -9,11 +9,8 @@ on:
 
 jobs:
   build:
+    name: Build Preview APK
     runs-on: ubuntu-latest
-    env:
-      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-      KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-      ENCODED_STRING: ${{ secrets.KEYSTORE_BASE64 }}
 
     steps:
       - name: Checkout repository
@@ -29,14 +26,16 @@ jobs:
       - name: Make gradlew executable
         run: chmod +x ./gradlew
 
-      - name: Decode Keystore
-        run: |
-          if [ -n "$ENCODED_STRING" ]; then
-            echo "$ENCODED_STRING" | base64 --decode > app/my-upload-key.jks
-          fi
-
       - name: Run Unit Tests
         run: ./gradlew testDebugUnitTest
 
-      - name: Build Release APK
-        run: ./gradlew assembleRelease
+      - name: Build Debug Preview APK
+        run: ./gradlew assembleDebug
+
+      - name: Upload Preview APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: router-agent-preview-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 7
