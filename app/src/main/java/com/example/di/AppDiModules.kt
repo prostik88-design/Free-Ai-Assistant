@@ -98,7 +98,8 @@ class AgentModule @Inject constructor(
             chatDao = databaseModule.chatDao,
             messageDao = databaseModule.messageDao,
             projectDao = databaseModule.projectDao,
-            skillDao = databaseModule.skillDao
+            skillDao = databaseModule.skillDao,
+            mcpServerDao = databaseModule.mcpServerDao
         )
     }
 }

@@ -60,9 +60,7 @@ class FirestoreSyncManager @Inject constructor(
                     "name" to p.name,
                     "description" to p.description,
                     "systemPrompt" to p.systemPrompt,
-                    "contextFiles" to p.contextFiles,
-                    "activeSkillIds" to p.activeSkillIds,
-                    "mcpServerIds" to p.mcpServerIds,
+                    "contextFilesJson" to p.contextFilesJson,
                     "createdAt" to p.createdAt,
                     "updatedAt" to p.updatedAt
                 )
@@ -91,11 +89,14 @@ class FirestoreSyncManager @Inject constructor(
                         "chatId" to m.chatId,
                         "role" to m.role,
                         "content" to m.content,
-                        "toolCallsJson" to m.toolCallsJson,
+                        "timestamp" to m.timestamp,
                         "toolCallId" to m.toolCallId,
-                        "stepIndex" to m.stepIndex,
-                        "isApprovalPending" to m.isApprovalPending,
-                        "createdAt" to m.createdAt
+                        "toolName" to m.toolName,
+                        "toolArgs" to m.toolArgs,
+                        "toolSource" to m.toolSource,
+                        "toolStatus" to m.toolStatus,
+                        "toolResult" to m.toolResult,
+                        "isStreaming" to m.isStreaming
                     )
                     userDoc.collection("chats").document(c.id).collection("messages").document(m.id).set(msgData, SetOptions.merge()).await()
                 }
@@ -109,7 +110,7 @@ class FirestoreSyncManager @Inject constructor(
                     "name" to s.name,
                     "description" to s.description,
                     "systemPrompt" to s.systemPrompt,
-                    "toolsAllowed" to s.toolsAllowed,
+                    "toolsAllowedJson" to s.toolsAllowedJson,
                     "inputSchema" to s.inputSchema,
                     "outputFormat" to s.outputFormat,
                     "sourceUrl" to s.sourceUrl,
@@ -127,9 +128,9 @@ class FirestoreSyncManager @Inject constructor(
                     "name" to srv.name,
                     "serverUrl" to srv.serverUrl,
                     "transportType" to srv.transportType,
+                    "authHeader" to srv.authHeader,
                     "isEnabled" to srv.isEnabled,
-                    "cachedToolsJson" to srv.cachedToolsJson,
-                    "lastPingTime" to srv.lastPingTime,
+                    "toolsJson" to srv.toolsJson,
                     "createdAt" to srv.createdAt
                 )
                 userDoc.collection("mcp_servers").document(srv.id).set(srvData, SetOptions.merge()).await()
@@ -163,9 +164,7 @@ class FirestoreSyncManager @Inject constructor(
                     name = doc.getString("name") ?: "Restored Project",
                     description = doc.getString("description") ?: "",
                     systemPrompt = doc.getString("systemPrompt") ?: "",
-                    contextFiles = doc.getString("contextFiles") ?: "[]",
-                    activeSkillIds = doc.getString("activeSkillIds") ?: "[]",
-                    mcpServerIds = doc.getString("mcpServerIds") ?: "[]",
+                    contextFilesJson = doc.getString("contextFilesJson") ?: doc.getString("contextFiles") ?: "[]",
                     createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis(),
                     updatedAt = doc.getLong("updatedAt") ?: System.currentTimeMillis()
                 )
@@ -182,7 +181,7 @@ class FirestoreSyncManager @Inject constructor(
                     name = doc.getString("name") ?: "Restored Skill",
                     description = doc.getString("description") ?: "",
                     systemPrompt = doc.getString("systemPrompt") ?: "",
-                    toolsAllowed = doc.getString("toolsAllowed") ?: "[]",
+                    toolsAllowedJson = doc.getString("toolsAllowedJson") ?: doc.getString("toolsAllowed") ?: "[]",
                     inputSchema = doc.getString("inputSchema"),
                     outputFormat = doc.getString("outputFormat"),
                     sourceUrl = doc.getString("sourceUrl"),
@@ -218,17 +217,38 @@ class FirestoreSyncManager @Inject constructor(
                         chatId = mDoc.getString("chatId") ?: chat.id,
                         role = mDoc.getString("role") ?: "user",
                         content = mDoc.getString("content") ?: "",
-                        toolCallsJson = mDoc.getString("toolCallsJson"),
+                        timestamp = mDoc.getLong("timestamp") ?: mDoc.getLong("createdAt") ?: System.currentTimeMillis(),
                         toolCallId = mDoc.getString("toolCallId"),
-                        stepIndex = mDoc.getLong("stepIndex")?.toInt() ?: 0,
-                        isApprovalPending = mDoc.getBoolean("isApprovalPending") ?: false,
-                        createdAt = mDoc.getLong("createdAt") ?: System.currentTimeMillis()
+                        toolName = mDoc.getString("toolName"),
+                        toolArgs = mDoc.getString("toolArgs"),
+                        toolSource = mDoc.getString("toolSource"),
+                        toolStatus = mDoc.getString("toolStatus"),
+                        toolResult = mDoc.getString("toolResult"),
+                        isStreaming = mDoc.getBoolean("isStreaming") ?: false
                     )
                     messageDao.insertMessage(msg)
                 }
             }
 
-            val msg = "Restored $restoredProjects projects, $restoredChats chats, $restoredSkills skills from Firestore."
+            // 4. Restore MCP Servers
+            val mcpSnap = userDoc.collection("mcp_servers").get().await()
+            var restoredServers = 0
+            for (doc in mcpSnap.documents) {
+                val server = McpServerEntity(
+                    id = doc.getString("id") ?: doc.id,
+                    name = doc.getString("name") ?: "Restored Server",
+                    serverUrl = doc.getString("serverUrl") ?: "",
+                    transportType = doc.getString("transportType") ?: "HTTP",
+                    authHeader = doc.getString("authHeader"),
+                    isEnabled = doc.getBoolean("isEnabled") ?: true,
+                    toolsJson = doc.getString("toolsJson") ?: doc.getString("cachedToolsJson") ?: "[]",
+                    createdAt = doc.getLong("createdAt") ?: System.currentTimeMillis()
+                )
+                mcpServerDao.insertServer(server)
+                restoredServers++
+            }
+
+            val msg = "Restored $restoredProjects projects, $restoredChats chats, $restoredSkills skills, $restoredServers MCP servers from Firestore."
             _syncState.value = FirestoreSyncState.Success(msg)
             Result.success(msg)
         } catch (e: Exception) {

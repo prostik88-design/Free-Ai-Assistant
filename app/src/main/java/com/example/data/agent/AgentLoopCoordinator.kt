@@ -1,6 +1,8 @@
 package com.example.data.agent
 
+import android.util.Log
 import com.example.data.local.dao.ChatDao
+import com.example.data.local.dao.McpServerDao
 import com.example.data.local.dao.MessageDao
 import com.example.data.local.dao.ProjectDao
 import com.example.data.local.dao.SkillDao
@@ -41,7 +43,8 @@ class AgentLoopCoordinator(
     private val chatDao: ChatDao,
     private val messageDao: MessageDao,
     private val projectDao: ProjectDao,
-    private val skillDao: SkillDao
+    private val skillDao: SkillDao,
+    private val mcpServerDao: McpServerDao
 ) {
     private val _agentState = MutableStateFlow<AgentExecutionState>(AgentExecutionState.Idle)
     val agentState: StateFlow<AgentExecutionState> = _agentState.asStateFlow()
@@ -127,7 +130,9 @@ class AgentLoopCoordinator(
                         val list = mutableListOf<String>()
                         for (i in 0 until arr.length()) list.add(arr.getString(i))
                         if (list.isNotEmpty()) allowedToolFilter = list
-                    } catch (e: Exception) {}
+                    } catch (e: Exception) {
+                        Log.e("AgentLoopCoordinator", "Error parsing toolsAllowedJson for skill ${skill.name}", e)
+                    }
                 }
             }
         }
@@ -141,62 +146,53 @@ class AgentLoopCoordinator(
         var iteration = 0
         var loopFinished = false
 
-        while (!loopFinished && iteration < maxIterations) {
+        while (iteration < maxIterations && !loopFinished) {
             iteration++
 
-            // Fetch current conversation messages for prompt
-            val dbMessages = messageDao.getMessagesForChatOnce(chatId)
+            // Fetch history messages
+            val currentHistory = messageDao.getMessagesForChatList(chatId)
             val openRouterMessages = mutableListOf<OpenRouterMessage>()
 
+            // Add dynamic system prompt as first message
             openRouterMessages.add(
-                OpenRouterMessage(role = "system", content = systemPromptBuilder.toString())
+                OpenRouterMessage(
+                    role = "system",
+                    content = systemPromptBuilder.toString().trim()
+                )
             )
 
-            for (m in dbMessages) {
+            // Convert DB messages to OpenRouter API format
+            for (m in currentHistory) {
                 when (m.role) {
-                    "user" -> openRouterMessages.add(OpenRouterMessage(role = "user", content = m.content))
-                    "assistant" -> {
-                        val toolCalls = if (!m.toolCallId.isNullOrBlank() && !m.toolName.isNullOrBlank()) {
-                            listOf(
-                                OpenRouterToolCall(
-                                    id = m.toolCallId,
-                                    functionName = m.toolName,
-                                    functionArguments = m.toolArgs ?: "{}"
-                                )
-                            )
-                        } else null
-                        openRouterMessages.add(
-                            OpenRouterMessage(role = "assistant", content = m.content, toolCalls = toolCalls)
+                    "user" -> openRouterMessages.add(OpenRouterMessage("user", m.content))
+                    "assistant" -> openRouterMessages.add(OpenRouterMessage("assistant", m.content))
+                    "tool" -> openRouterMessages.add(
+                        OpenRouterMessage(
+                            role = "tool",
+                            content = m.content,
+                            toolCallId = m.toolCallId,
+                            name = m.toolName
                         )
-                    }
-                    "tool" -> {
-                        openRouterMessages.add(
-                            OpenRouterMessage(
-                                role = "tool",
-                                content = m.toolResult ?: m.content,
-                                toolCallId = m.toolCallId,
-                                name = m.toolName
-                            )
-                        )
-                    }
+                    )
                 }
             }
 
-            val toolsToSend = if (isAgentic) registry.map { it.toOpenRouterTool() } else emptyList()
+            // Prepare tool declarations
+            val openRouterTools = if (isAgentic) registry.map { it.toOpenRouterTool() } else emptyList()
 
-            // Assistant message placeholder
             val assistantMsgId = UUID.randomUUID().toString()
             var accumulatedText = ""
             var receivedToolCalls: List<OpenRouterToolCall>? = null
 
             _agentState.value = AgentExecutionState.Streaming("")
 
+            // 6. Request completion from OpenRouter
             try {
                 openRouterClient.streamChatCompletion(
                     apiKey = apiKey,
                     model = modelToUse,
                     messages = openRouterMessages,
-                    tools = toolsToSend,
+                    tools = openRouterTools,
                     temperature = settings.temperature,
                     maxTokens = settings.maxTokens
                 ).collect { chunk ->
@@ -206,7 +202,7 @@ class AgentLoopCoordinator(
                         return@collect
                     }
 
-                    if (!chunk.deltaText.isNullOrEmpty()) {
+                    if (chunk.deltaText != null) {
                         accumulatedText += chunk.deltaText
                         _agentState.value = AgentExecutionState.Streaming(accumulatedText)
                     }
@@ -246,7 +242,6 @@ class AgentLoopCoordinator(
                     val matchedTool = registry.firstOrNull { it.name == toolName }
 
                     if (matchedTool == null) {
-                        // Page 4: Unknown tool is cleanly rejected
                         val rejectedResult = "Error: Unknown tool '$toolName'. Tool was rejected."
                         messageDao.insertMessage(
                             MessageEntity(
@@ -426,8 +421,27 @@ class AgentLoopCoordinator(
 
         // 2. MCP tools from database
         if (allowMcp) {
-            // Note: we can load enabled servers and their discovered tools
-            // from database or cache
+            val enabledServers = mcpServerDao.getEnabledServersOnce()
+            for (srv in enabledServers) {
+                if (srv.toolsJson.isNotBlank()) {
+                    val mcpTools = McpToolDefinition.parseList(srv.toolsJson)
+                    for (t in mcpTools) {
+                        if (t.isEnabled) {
+                            list.add(
+                                AgentTool(
+                                    name = t.name,
+                                    description = t.description,
+                                    parametersJson = t.inputSchemaJson,
+                                    source = "MCP",
+                                    isDangerous = t.isDangerous,
+                                    mcpServerUrl = srv.serverUrl,
+                                    mcpAuthHeader = srv.authHeader
+                                )
+                            )
+                        }
+                    }
+                }
+            }
         }
 
         // Apply skill filter if provided

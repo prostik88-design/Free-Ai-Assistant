@@ -57,7 +57,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         chatDao = database.chatDao(),
         messageDao = database.messageDao(),
         projectDao = database.projectDao(),
-        skillDao = database.skillDao()
+        skillDao = database.skillDao(),
+        mcpServerDao = database.mcpServerDao()
     )
 
     // Flow states

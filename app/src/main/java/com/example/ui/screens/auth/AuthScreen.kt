@@ -56,7 +56,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.R
+import com.routeragent.aistudio.R
 import com.example.ui.theme.CyberIndigo
 import com.example.ui.theme.CyberRose
 import com.example.ui.theme.CyberTeal

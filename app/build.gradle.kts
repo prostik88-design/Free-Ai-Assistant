@@ -2,6 +2,7 @@ import com.google.gms.googleservices.GoogleServicesPlugin.MissingGoogleServicesS
 
 plugins {
   alias(libs.plugins.android.application)
+  alias(libs.plugins.kotlin.android)
   alias(libs.plugins.kotlin.compose)
   alias(libs.plugins.google.devtools.ksp)
   alias(libs.plugins.secrets)
@@ -48,13 +49,11 @@ android {
           "proguard-rules.pro"
       )
       signingConfig = signingConfigs.getByName("release")
-      debuggable = false
     }
     
     debug {
       isMinifyEnabled = false
       isShrinkResources = false
-      debuggable = true
       signingConfig = signingConfigs.getByName("debug")
     }
   }
@@ -62,10 +61,6 @@ android {
   compileOptions {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11
-  }
-  
-  kotlinOptions {
-    jvmTarget = "11"
   }
 
   buildFeatures {
@@ -92,6 +87,12 @@ android {
         "META-INF/LICENSE-notice.txt"
       )
     }
+  }
+}
+
+kotlin {
+  compilerOptions {
+    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
   }
 }
 
